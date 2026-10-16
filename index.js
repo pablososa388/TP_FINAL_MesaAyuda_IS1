@@ -154,6 +154,9 @@ app.post('/api/loginCliente', (req,res) => {
                     const activo=jsonParser('activo',data.Items[0]);
                     const id=jsonParser('id',data.Items[0]);
                     const contacto=jsonParser('contacto',data.Items[0]);
+                    // PUNTO 2: la password se compara ACÁ, en el servidor. Nunca se incluye en ninguna respuesta:
+// al navegador solo vuelve la bandera "response". Hay dos casos que le importan al login:
+// "OK" si coincide y "invalido" si no (el valor "invalido" lo pide la consigna).
                     if (password == paswd) {
                         if (activo == true) {
                             const nombre=jsonParser('nombre',data.Items[0]);
@@ -164,7 +167,7 @@ app.post('/api/loginCliente', (req,res) => {
                             res.status(400).send(JSON.stringify({response : "ERROR", message : "Cliente no activo"}));
                         }
                     } else {
-                        res.status(400).send(JSON.stringify({response : "ERROR" , message : "usuario incorrecto"}));
+                        res.status(400).send(JSON.stringify({response : "Inválido" , message : "usuario inválido"}));
                     }
                 }
             }
