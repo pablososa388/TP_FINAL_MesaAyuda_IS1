@@ -115,57 +115,62 @@ app.post('/api/getCliente/:id', (req,res) => {
   /api/loginCliente
   Esta API permite acceder a un cliente por ID y comparar la password pasada en un JSON en el cuerpo con la indicada en el DB
 */  
+// PUNTO 1: antes se buscaba por ID con docClient.get() (clave primaria). Ahora llega el correo,
+// que está en el campo "contacto" y NO es clave primaria, así que get() no sirve: se usa scan() con filtro.
 app.post('/api/loginCliente', (req,res) => {
 
-    const { id } = req.body;
-    const {password} = req.body;
+    const { contacto } = req.body;   // antes: const { id } = req.body;
+    const { password } = req.body;
 
-    console.log("loginCliente: id("+id+") password ("+password+")");
+    console.log("loginCliente: mail("+contacto+") password ("+password+")");
 
     if (!password) {
         res.status(400).send({response : "ERROR" , message : "Password no informada"});
         return;
-    }    
-    if (!id) {
-        res.status(400).send({response : "ERROR" , message : "id no informado"});
+    }
+    if (!contacto) {
+        res.status(400).send({response : "ERROR" , message : "email no informado"});
         return;
-    }    
+    }
 
-    let getClienteByKey = function () {
+    let getClienteByEmail = function () {
         var params = {
             TableName: "cliente",
-            Key: {
-                "id" : id
-            }
+            FilterExpression: "contacto = :c",        // equivale a WHERE contacto = ?
+            ExpressionAttributeValues: { ":c": contacto }  // valor real que reemplaza al placeholder :c
         };
-        docClient.get(params, function (err, data) {
+        // scan recorre la tabla y devuelve data.Items: un ARRAY con los registros que cumplen el filtro
+        docClient.scan(params, function (err, data) {
             if (err) {
                 res.status(400).send(JSON.stringify({response : "ERROR", message : "DB access error "+err}));
-            }
-            else {
-                if (Object.keys(data).length == 0) {
+            } else {
+                // Si Items está vacío, ningún cliente tiene ese correo. No sirve preguntar por
+                // Object.keys(data): data siempre trae Items, Count y ScannedCount, y el servidor se cae.
+                if (data.Items.length == 0) {
                     res.status(400).send({response : "ERROR" , message : "Cliente invalido"});
                 } else {
-                    const paswd=jsonParser('password',data.Item);
-                    const activo=jsonParser('activo',data.Item);
-                    const id=jsonParser('id',data.Item);
-                    const contacto=jsonParser('contacto',data.Item);
+                    // Items[0]: se asume correo único, entonces el primer registro es el cliente
+                    const paswd=jsonParser('password',data.Items[0]);
+                    const activo=jsonParser('activo',data.Items[0]);
+                    const id=jsonParser('id',data.Items[0]);
+                    const contacto=jsonParser('contacto',data.Items[0]);
                     if (password == paswd) {
                         if (activo == true) {
-                            const nombre=jsonParser('nombre',data.Item);
-                            const fecha_ultimo_ingreso=jsonParser('fecha_ultimo_ingreso',data.Item);
-                            res.status(200).send(JSON.stringify({response : "OK", "id" : id, "nombre" : nombre, "contacto" : contacto, "fecha_ultimo_ingreso": fecha_ultimo_ingreso}));    
+                            const nombre=jsonParser('nombre',data.Items[0]);
+                            const fecha_ultimo_ingreso=jsonParser('fecha_ultimo_ingreso',data.Items[0]);
+                            // Se devuelve el "id" (UUID real) además del correo: listarTicket lo necesita
+                            res.status(200).send(JSON.stringify({response : "OK", "id" : id, "nombre" : nombre, "contacto" : contacto, "fecha_ultimo_ingreso": fecha_ultimo_ingreso}));
                         } else {
-                            res.status(400).send(JSON.stringify({response : "ERROR", message : "Cliente no activo"}));    
+                            res.status(400).send(JSON.stringify({response : "ERROR", message : "Cliente no activo"}));
                         }
                     } else {
-                       res.status(400).send(JSON.stringify({response : "ERROR" , message : "usuario incorrecto"}));
-                    }    
-            }    
+                        res.status(400).send(JSON.stringify({response : "ERROR" , message : "usuario incorrecto"}));
+                    }
+                }
             }
         })
     }
-    getClienteByKey();
+    getClienteByEmail();
 
 });
 
@@ -429,16 +434,17 @@ async function scanDbTicket(clienteID) {
   API REST para obtener todos los tickets de un clienteID
 */  
 app.post('/api/listarTicket', (req,res) => {
-
-    const {clienteID}  = req.body;
-    console.log("listarTicket: clienteID("+clienteID+")");
+// PUNTO 1: el diagrama de secuencia define el mensaje como listarTicket{ID}, y listarTicket.js ya manda "ID".
+// El servidor esperaba "clienteID", por eso respondía 400. Se renombra en los 4 lugares donde se usa.
+    const {ID}  = req.body;
+    console.log("listarTicket: clienteID("+ID+")");
  
-    if (!clienteID) {
+    if (!ID) {
         res.status(400).send({response : "ERROR" , message: "clienteID no informada"});
         return;
     }
 
-    scanDbTicket(clienteID)
+    scanDbTicket(ID)
     .then(resultDb => {
       if (Object.keys(resultDb).length == 0) {
         res.status(400).send({response : "ERROR" , message : "clienteID no tiene tickets"});
