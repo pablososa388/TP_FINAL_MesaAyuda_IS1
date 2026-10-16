@@ -53,10 +53,10 @@
         <!-- <center><h4>Ingrese su identificación de usuario y password</h4></center> -->
         <table>
             <tr style="height:10px;">
-                <td><label for="cliForm" class="form-label">Usuario</label></td>               
+                <td><label for="cliForm" class="form-label">Correo electrónico</label></td> <!-- PUNTO 1: el login pide el correo electrónico en vez del ID de cliente (UUID), cambiado -->           
             </tr>
             <tr style="height:10px;">    
-                <td><input class="txt" name="id" type="text" placeholder="UserId"><br></td>
+                <td><input class="txt" name="contacto" type="text" placeholder="Correo electrónico"><br></td><!-- PUNTO 1:  name="contacto": es la clave con la que FormData arma el objeto "data" (data.contacto) -->
             </tr>
             <tr><td>&nbsp;</td></tr>
             <tr style="height:10px;">

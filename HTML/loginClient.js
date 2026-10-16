@@ -15,7 +15,7 @@ formE1.addEventListener('submit', (event) => {
         Realiza validaciones en los datos del formulario antes de procesar
         */
 
-	if (data.id == '' || data.password == '') {
+	if (data.contacto == '' || data.password == '') { // PUNTO 1: se valida "contacto" (el email) en vez de "id"
 		console.log('debe indicar usuario');
 		document.getElementById('resultado1').style.color = 'RED';
 		document.getElementById('resultado1').style.textAlign = 'center';
@@ -71,7 +71,9 @@ formE1.addEventListener('submit', (event) => {
         Crea estructuras para acceder a data del cliente
         */
 	    const login = {
-	        id: data.id,
+			// PUNTO 1: el cuerpo del POST ahora lleva "contacto". La clave tiene que llamarse igual que
+// la que lee el servidor en req.body; si solo cambiás el valor y dejás "id:", el servidor no lo recibe.
+	        contacto: data.contacto,
 		    password: data.password
 		}	
 
