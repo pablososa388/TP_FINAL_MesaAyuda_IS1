@@ -140,7 +140,9 @@ formE1.addEventListener('submit', (event) => {
 			console.log(
 				'Datos en respuesta del application server=' + JSON.stringify(users)
 			);
-			console.log('users.response=' + users.password);
+			// PUNTO 2: el navegador decide mirando solo "response". La password ya no viaja de vuelta,
+// así que este log (que antes imprimía users.password) pasa a mostrar la bandera.
+			console.log('users.response=' + users.response);
 			if (users.response == 'OK') {
 				//<==Habilitar esto para dejar que el API REST verifique sin exponer la password
 				console.log('La password es correcta');
