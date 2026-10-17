@@ -1,4 +1,32 @@
 const formE1 = document.querySelector('.form');
+// PUNTO 3: habilitar "Registrate" solo si el correo NO existe en la base
+const inputContacto = document.querySelector('input[name="contacto"]');
+const linkRegistrate = document.getElementById('linkRegistrate');
+
+// "blur" se dispara cuando el usuario sale del campo (click afuera o paso al siguiente)
+inputContacto.addEventListener('blur', () => {
+    const contacto = inputContacto.value;
+    if (contacto == '') {
+        return;   // campo vacío: no hay nada para consultar
+    }
+    fetch('http://localhost:8080/api/existeCliente', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contacto: contacto }),
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.existe == true) {
+            // ya está registrado: link deshabilitado
+            linkRegistrate.style.pointerEvents = 'none';
+            linkRegistrate.style.opacity = '0.5';
+        } else {
+            // correo nuevo: link habilitado
+            linkRegistrate.style.pointerEvents = 'auto';
+            linkRegistrate.style.opacity = '1';
+        }
+    });
+});
 
 /*---
     Intercepta el submit del formulario
