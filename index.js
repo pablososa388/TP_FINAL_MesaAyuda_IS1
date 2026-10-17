@@ -238,6 +238,7 @@ app.post('/api/addCliente', (req,res) => {
         res.status(400).send({response : "ERROR" , message : "Cliente ya existe"});
         return;
       } else {
+        const newID = crypto.randomUUID();// PUNTO 3: declaramos newid
         var hoy = new Date();
         var dd = String(hoy.getDate()).padStart(2, '0');
         var mm = String(hoy.getMonth() + 1).padStart(2, '0'); //January is 0!
