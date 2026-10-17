@@ -186,7 +186,9 @@ async function scanDb(contacto) {
     const paramsScan = { // ScanInput
       TableName: "cliente", // required
       Select: "ALL_ATTRIBUTES" || "ALL_PROJECTED_ATTRIBUTES" || "SPECIFIC_ATTRIBUTES" || "COUNT",
-      FilterExpression : 'id = :contacto',
+      // PUNTO 3: la función de pedro filtraba por "id" en vez de "contacto", entonces nunca encontraba
+// un cliente por su correo. Se corrige para buscar por el campo "contacto".
+      FilterExpression : 'contacto = :contacto',
       ExpressionAttributeValues : {':contacto' : scanKey}
     };      
     var objectPromise = await docClient.scan(paramsScan).promise().then((data) => {
@@ -204,6 +206,9 @@ app.post('/api/addCliente', (req,res) => {
     const {contacto} = req.body;
     const {password} = req.body;
     const {nombre}   = req.body;
+    //Punto 3
+    // Los T&C son obligatorios: el navegador manda "on" si el checkbox está tildado
+    const{termscondition}= req.body;
     console.log("addCliente: contacto("+contacto+") nombre("+nombre+") password("+password+")");
     
     if (!password) {
@@ -219,6 +224,13 @@ app.post('/api/addCliente', (req,res) => {
         res.status(400).send({response : "ERROR" , message : "Contacto no informado"});
         return;
     } 
+    //PUNTO 3
+    // Validación en el servidor. El "return" es clave: sin él la función sigue de largo,
+    // da de alta al cliente igual y después se cae al intentar responder dos veces.
+    if (termscondition != 'on'){
+        res.status(400).send({response: "ERROR", message: "Terminos y condiciones no aceptadas"});
+        return;
+    }
 
     scanDb(contacto)
     .then(resultDb => {
@@ -233,7 +245,8 @@ app.post('/api/addCliente', (req,res) => {
         hoy = dd + '/' + mm + '/' + yyyy;
     
         const newCliente = {
-         id                    : contacto,
+         id                    : newID, // antes: id: contacto
+         contacto              : contacto, // el email ahora se guarda como atributo aparte
          nombre                : nombre,
          password              : password,
          activo                : true,
@@ -258,6 +271,28 @@ app.post('/api/addCliente', (req,res) => {
             }
         });
     }
+    });
+
+});
+// PUNTO 3: informa si un correo ya está registrado. Lo usa el login para habilitar o deshabilitar "Registrate".
+// Siempre responde 200: "existe" y "no existe" son respuestas válidas, no errores.
+// Ojo: permite probar correos sin autenticarse (enumeración de usuarios). La consigna admite esa debilidad.
+app.post('/api/existeCliente', (req, res) => {
+
+    const { contacto } = req.body;
+
+    if (!contacto) {
+        res.status(400).send({ response: "ERROR", message: "Contacto no informado" });
+        return;
+    }
+
+    scanDb(contacto)
+    .then(resultDb => {
+        if (Object.keys(resultDb).length != 0) {
+            res.status(200).send({ response: "OK", existe: true });
+        } else {
+            res.status(200).send({ response: "OK", existe: false });
+        }
     });
 
 });
