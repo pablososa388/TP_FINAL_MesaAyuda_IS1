@@ -214,11 +214,18 @@ formE1.addEventListener('submit', (event) => {
 					'&fecha_ultimo_ingreso=' +
 					users.fecha_ultimo_ingreso +
 					'&mode=' + MODE;
-			} else {
+			} else if (users.response == 'invalido') {
+				// PUNTO 2: el servidor avisa que la password no coincide con la guardada
 				console.log('La password no es correcta');
-				document.getElementById('resultado1').style.color = 'RED'; /*--Fix hecho por  Germán Lombardi IS1-2025 */
+				document.getElementById('resultado1').style.color = 'RED';
 				document.getElementById('resultado1').textContent =
-					'Error de login, intente nuevamente';                  /*--Fix hecho por  Germán Lombardi IS1-2025 */
+					'Error de login, intente nuevamente';
+			} else {
+				// cualquier otra respuesta: cliente inexistente o inactivo, error de la base
+				console.log('Login rechazado: ' + users.message);
+				document.getElementById('resultado1').style.color = 'RED';
+				document.getElementById('resultado1').textContent =
+					'Error de login, intente nuevamente';
 			}
 		});
 });
