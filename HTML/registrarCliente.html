@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- PUNTO 3: pantalla de registración. Copia la estructura del login con 4 campos. -->
+<html Lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Registro de cliente</title>
+    <style type="text/css">
+        label { font-size: 18px; }
+        form { width: 500px; border: 1px solid black; }
+        input { margin: 7px; padding: 2px }
+        .form-label { margin-bottom:0!important; }
+        .txt { display: inline-block; width: 80%; outline: none; margin:0; }
+    </style>
+</head>
+<body>
+    <center><img src="HelpDeskGirl.png" alt="Nuestra imagen corporativa" style="width:200px;height:150px;"></center>
+    <center>
+        <h1>Sistema de Mesa de Ayuda</h1>
+        <h2>Registro de nuevo cliente</h2>
+    </center>
+    <center>
+    <form class="form" method="GET" style="background-color:#d8f7cf" border="1">
+        <br>
+        <table>
+            <tr><td><label class="form-label">Correo electrónico</label></td></tr>
+            <tr><td><input class="txt" name="contacto" type="text" placeholder="correo electrónico"><br></td></tr>
+            <tr><td>&nbsp;</td></tr>
+            <!-- El campo nombre no está en la consigna, pero addCliente lo exige -->
+            <tr><td><label class="form-label">Nombre</label></td></tr>
+            <tr><td><input class="txt" name="nombre" type="text" placeholder="Nombre completo"><br></td></tr>
+            <tr><td>&nbsp;</td></tr>
+            <tr><td><label class="form-label">Contraseña</label></td></tr>
+            <tr><td><input class="txt" name="password" type="password" placeholder="Contraseña"><br></td></tr>
+            <tr><td><span id="resultado1"></span></td></tr>
+            <tr><td><br><input name="termscondition" type="checkbox"> Acepto los términos y condiciones del ingreso al sistema (S.E.u.O)</td></tr>
+            <tr><td><span id="resultado2"></span></td></tr>
+        </table>
+        <button type="submit">Registrarme</button>
+        <p></p>
+    </form>
+    </center>
+    <div id="app"></div>
+    <script src="registrarCliente.js" type="module"></script>
+</body>
+</html>
