@@ -167,7 +167,7 @@ app.post('/api/loginCliente', (req,res) => {
                             res.status(400).send(JSON.stringify({response : "ERROR", message : "Cliente no activo"}));
                         }
                     } else {
-                        res.status(400).send(JSON.stringify({response : "Inválido" , message : "usuario inválido"}));
+                        res.status(400).send(JSON.stringify({response : "invalido" , message : "usuario invalido"}));
                     }
                 }
             }

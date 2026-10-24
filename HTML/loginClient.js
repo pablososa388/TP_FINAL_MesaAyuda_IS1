@@ -5,6 +5,7 @@ const linkRegistrate = document.getElementById('linkRegistrate');
 
 // "blur" se dispara cuando el usuario sale del campo (click afuera o paso al siguiente)
 inputContacto.addEventListener('blur', () => {
+	console.log('Entró al blur')
     const contacto = inputContacto.value;
     if (contacto == '') {
         return;   // campo vacío: no hay nada para consultar
@@ -16,6 +17,7 @@ inputContacto.addEventListener('blur', () => {
     })
     .then(res => res.json())
     .then(result => {
+		console.log("existe: "+result.existe);
         if (result.existe == true) {
             // ya está registrado: link deshabilitado
             linkRegistrate.style.pointerEvents = 'none';
