@@ -773,4 +773,83 @@ app.post('/resumenTickets', (req,res) => {
     console.log("resumenTickets POST: ID("+ID+")");
     resumenTickets(ID, password, res);
 });
+
+/*---------
+consultarTicket
+Función común para GET y POST: valida usuario y password y devuelve los datos de un ticket
+*/
+// PUNTO 7: igual que el punto 6, una función común para GET y POST.
+// No confundir con /api/getTicket (ya existía): esa busca el ticket sin pedir usuario ni password.
+async function consultarTicket(ID, password, ticketID, res) {
+
+    // Si falta algún dato se responde error 400 y "return" corta la función
+    if (!ID) {
+        res.status(400).send({response : "ERROR" , message : "ID no informado"});
+        return;
+    }
+    if (!password) {
+        res.status(400).send({response : "ERROR" , message : "Password no informada"});
+        return;
+    }
+    if (!ticketID) {
+        res.status(400).send({response : "ERROR" , message : "Ticket no informado"});
+        return;
+    }
+
+    // Valida el usuario (correo) y la password ANTES de consultar el ticket, como pide la consigna:
+    // si no son válidos, "return" corta la función y la búsqueda del ticket ni se ejecuta.
+    const usuario = await scanDb(ID);
+    if (usuario.length == 0 || usuario[0].password != password) {
+        res.status(400).send({response : "ERROR" , message : "Usuario o password invalido"});
+        return;
+    }
+
+    // Busca el ticket por su clave primaria (id). Acá se puede usar "get" (y no "scan") justamente por eso.
+    const params = {
+        TableName: "ticket",
+        Key: { "id" : ticketID }
+    };
+    // ".promise()" permite usar "await" con docClient.get, que normalmente trabaja con una función de respuesta
+    const data = await docClient.get(params).promise();
+
+    // Si el ticket no existe, DynamoDB responde sin el atributo "Item"
+    if (!data.Item) {
+        res.status(400).send({response : "ERROR" , message : "Ticket no existe"});
+        return;
+    }
+
+    // Respuesta: id y correo del cliente más el registro completo del ticket (data.Item)
+    res.status(200).send(JSON.stringify({
+        response : "OK",
+        id       : usuario[0].id,
+        contacto : usuario[0].contacto,
+        ticket   : data.Item
+    }));
+}
+
+/*---
+  /getTicket  (GET)
+  Los argumentos llegan en el URL: /getTicket?ID={usuario}&PASSWORD={password}&TICKET={ticketID}
+*/
+// PUNTO 7: GET toma los datos del URL (req.query).
+app.get('/getTicket', (req,res) => {
+    const ID       = req.query.ID;
+    const password = req.query.PASSWORD;
+    const ticketID = req.query.TICKET;
+    console.log("getTicket GET: ID("+ID+") TICKET("+ticketID+")");
+    consultarTicket(ID, password, ticketID, res);
+});
+
+/*---
+  /getTicket  (POST)
+  Los argumentos llegan en un JSON: {"ID": "...", "PASSWORD": "...", "TICKET": "..."}
+*/
+// PUNTO 7: POST toma los datos del cuerpo del pedido (req.body).
+app.post('/getTicket', (req,res) => {
+    const ID       = req.body.ID;
+    const password = req.body.PASSWORD;
+    const ticketID = req.body.TICKET;
+    console.log("getTicket POST: ID("+ID+") TICKET("+ticketID+")");
+    consultarTicket(ID, password, ticketID, res);
+});
 /*-------------------------------------------------[ Fin del API REST ]-------------------------------------------------------------*/
