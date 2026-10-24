@@ -676,4 +676,101 @@ app.post('/api/updateTicket', (req,res) => {
     })
 
 });
+
+/*---------
+Función para realizar el SCAN completo (sin filtro) de una tabla
+*/
+// PUNTO 6: igual que scanDb y scanDbTicket, pero sin FilterExpression: devuelve TODOS los registros de la tabla.
+// "tabla" es el nombre de la tabla a leer ("cliente" o "ticket").
+async function scanDbTabla(tabla) {
+    var docClient = new AWS.DynamoDB.DocumentClient();
+    const paramsScan = {
+      TableName: tabla
+    };
+    // "await" espera a que DynamoDB responda antes de seguir; data.Items es la lista de registros
+    var objectPromise = await docClient.scan(paramsScan).promise().then((data) => {
+          return data.Items
+    });
+    return objectPromise;
+}
+
+/*---------
+resumenTickets
+Función común para GET y POST: valida usuario y password y devuelve la cantidad de tickets de cada cliente
+*/
+// PUNTO 6: la lógica está en una sola función que usan las dos rutas (GET y POST), así dan el mismo resultado.
+// "async" permite usar "await" adentro: el código se lee de arriba hacia abajo, esperando cada consulta.
+async function resumenTickets(ID, password, res) {
+
+    // Si falta algún dato se responde error 400 y "return" corta la función
+    if (!ID) {
+        res.status(400).send({response : "ERROR" , message : "ID no informado"});
+        return;
+    }
+    if (!password) {
+        res.status(400).send({response : "ERROR" , message : "Password no informada"});
+        return;
+    }
+
+    // Valida el usuario: el "usuario" es el correo. scanDb devuelve una lista con los clientes que tienen ese correo.
+    // Error si la lista está vacía (correo inexistente) o la password no coincide. Se usa un solo mensaje
+    // para no revelar cuál de las dos cosas falló.
+    const usuario = await scanDb(ID);
+    if (usuario.length == 0 || usuario[0].password != password) {
+        res.status(400).send({response : "ERROR" , message : "Usuario o password invalido"});
+        return;
+    }
+
+    // Lee todos los clientes y todos los tickets de la base de datos
+    const clientes = await scanDbTabla("cliente");
+    const tickets  = await scanDbTabla("ticket");
+
+    // "resumen" es la lista que se va a devolver: un elemento por cada cliente
+    const resumen = [];
+    // forEach recorre la lista de clientes de a uno ("c" es el cliente actual)
+    clientes.forEach((c) => {
+        // filter arma una lista nueva con los tickets cuyo clienteID coincide con el id de este cliente
+        const susTickets = tickets.filter((t) => t.clienteID == c.id);
+        // push agrega el resultado de este cliente a la lista
+        resumen.push({
+            id               : c.id,
+            contacto         : c.contacto,
+            cantidad_tickets : susTickets.length,   // la cantidad es el largo de la lista (puede ser 0)
+            // map arma otra lista transformando cada ticket: queda solo con los tres datos pedidos
+            tickets          : susTickets.map((t) => ({
+                id              : t.id,
+                fecha_apertura  : t.fecha_apertura,
+                estado_solucion : t.estado_solucion
+            }))
+        });
+    });
+
+    // JSON.stringify convierte el resultado en texto JSON para enviarlo. No incluye ninguna password.
+    res.status(200).send(JSON.stringify({response : "OK", "clientes" : resumen}));
+}
+
+/*---
+  /resumenTickets  (GET)
+  Los argumentos llegan en el URL: /resumenTickets?ID={usuario}&PASSWORD={password}
+*/
+// PUNTO 6: en GET los datos viajan en el URL y Express los deja en req.query.
+// Los nombres ID y PASSWORD (en mayúscula) son los de la consigna: JavaScript distingue mayúsculas de minúsculas.
+app.get('/resumenTickets', (req,res) => {
+    const ID       = req.query.ID;
+    const password = req.query.PASSWORD;
+    console.log("resumenTickets GET: ID("+ID+")");
+    resumenTickets(ID, password, res);
+});
+
+/*---
+  /resumenTickets  (POST)
+  Los argumentos llegan en un JSON: {"ID": "...", "PASSWORD": "..."}
+*/
+// PUNTO 6: en POST los datos viajan en el cuerpo del pedido, en JSON, y Express los deja en req.body.
+app.post('/resumenTickets', (req,res) => {
+    const ID       = req.body.ID;
+    const password = req.body.PASSWORD;
+    console.log("resumenTickets POST: ID("+ID+")");
+    resumenTickets(ID, password, res);
+});
 /*-------------------------------------------------[ Fin del API REST ]-------------------------------------------------------------*/
