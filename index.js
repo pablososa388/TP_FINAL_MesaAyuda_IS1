@@ -122,7 +122,7 @@ app.post('/api/loginCliente', (req,res) => {
     const { contacto } = req.body;   // antes: const { id } = req.body;
     const { password } = req.body;
 
-    console.log("loginCliente: mail("+contacto+") password ("+password+")");
+    console.log("loginCliente: mail("+contacto+")");
 
     if (!password) {
         res.status(400).send({response : "ERROR" , message : "Password no informada"});
@@ -209,7 +209,7 @@ app.post('/api/addCliente', (req,res) => {
     //Punto 3
     // Los T&C son obligatorios: el navegador manda "on" si el checkbox está tildado
     const{termscondition}= req.body;
-    console.log("addCliente: contacto("+contacto+") nombre("+nombre+") password("+password+")");
+    console.log("addCliente: contacto("+contacto+") nombre("+nombre+")");
     
     if (!password) {
         res.status(400).send({response : "ERROR" , message: "Password no informada"});
@@ -310,7 +310,7 @@ app.post('/api/updateCliente', (req,res) => {
     var activo = ((req.body.activo+'').toLowerCase() === 'true')
     var registrado = ((req.body.registrado+'').toLowerCase() === 'true')
 
-    console.log("updateCliente: id("+id+") nombre("+nombre+") password("+password+") activo("+activo+") registrado("+registrado+")");
+    console.log("updateCliente: id("+id+") nombre("+nombre+") activo("+activo+") registrado("+registrado+")");
 
     if (!id) {
         res.status(400).send({response : "ERROR" , message: "Id no informada"});
