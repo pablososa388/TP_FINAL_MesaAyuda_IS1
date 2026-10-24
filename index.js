@@ -268,7 +268,7 @@ app.post('/api/addCliente', (req,res) => {
             if (err) {
                 res.status(400).send(JSON.stringify({response : "ERROR", message : "DB error" + err}));
             } else {
-                res.status(200).send(JSON.stringify({response : "OK", "cliente": newCliente}));
+                res.status(200).send(JSON.stringify({response : "OK", message : "Cliente registrado"}));
             }
         });
     }
