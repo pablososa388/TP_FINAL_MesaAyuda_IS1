@@ -384,15 +384,19 @@ app.post('/api/updateCliente', (req,res) => {
 });
 /*-------
 /api/resetCliente
-Permite cambiar la password de un cliente
+Permite cambiar la password de un cliente, identificado por su correo electrónico (contacto)
 */
+// PUNTO 5: antes esta función recibía el "id" del cliente y devolvía el registro completo (con la password).
+// Ahora recibe el correo ("contacto"), que es lo único que el usuario conoce, y no devuelve datos del cliente.
 app.post('/api/resetCliente', (req,res) => {
-    
-    const {id}       = req.body;
+
+    // req.body es el JSON que envía resetPassword.js; acá se leen los dos datos que llegan
+    const {contacto} = req.body;
     const {password} = req.body;
- 
-    if (!id) {
-        res.status(400).send({response : "ERROR" , message: "Id no informada"});
+
+    // Si falta alguno de los dos datos se responde error 400 y "return" corta la función
+    if (!contacto) {
+        res.status(400).send({response : "ERROR" , message: "Contacto no informado"});
         return;
     }
 
@@ -401,51 +405,47 @@ app.post('/api/resetCliente', (req,res) => {
         return;
     }
 
-    var params = {
-        TableName: "cliente",
-        Key: {
-            "id" : id
-            //test use "id": "0533a95d-7eef-4c6b-b753-1a41c9d1fbd0"   
-             }
-        };
-        
-    docClient.get(params, function (err, data) {
-        if (err)  {
-            res.status(400).send(JSON.stringify({response : "ERROR", message : "DB access error "+ null}));
+    // scanDb recorre la tabla "cliente" y devuelve una LISTA con los registros cuyo contacto coincide.
+    // El ".then" se ejecuta cuando la base de datos terminó de responder.
+    scanDb(contacto)
+    .then(resultDb => {
+        // Lista vacía = no hay ningún cliente con ese correo
+        if (Object.keys(resultDb).length == 0) {
+            res.status(400).send({response : "ERROR" , message : "Cliente no existe"});
             return;
-        } else {
+        }
 
-            if (Object.keys(data).length == 0) {
-                res.status(400).send(JSON.stringify({"response":"ERROR",message : "Cliente no existe"}),null,2);
-                return;
+        // "update" necesita la clave primaria (id), no el correo: se toma del primer registro encontrado
+        const id = resultDb[0].id;
+
+        const paramsUpdate = {
+            // "#p" es un alias del nombre del atributo (los alias evitan conflictos con palabras reservadas de DynamoDB)
+            ExpressionAttributeNames: {
+                "#p": "password"
+            },
+            // ":p" es un marcador que se reemplaza por la nueva password
+            ExpressionAttributeValues: {
+                ":p": password
+            },
+            // Key indica qué registro se modifica
+            Key: {
+                "id": id
+            },
+            TableName: "cliente",
+            // SET cambia el valor de un atributo: solo se toca la password, el resto del registro queda igual.
+            // Se quitó ReturnValues: "ALL_NEW", que hacía devolver el registro completo (con la password).
+            UpdateExpression: "SET #p = :p"
+        };
+
+        // Ejecuta el cambio. La función se llama cuando DynamoDB responde (err = error, data = resultado)
+        docClient.update(paramsUpdate, function (err, data) {
+            if (err) {
+                res.status(400).send(JSON.stringify({response : "ERROR", message : "DB access error "+err}));
             } else {
-
-                const paramsUpdate = { 
-   
-                    ExpressionAttributeNames: { 
-                         "#p": "password" 
-                    }, 
-                    ExpressionAttributeValues: { 
-                        ":p": password 
-                   }, 
-                   Key: { 
-                       "id": id 
-                   }, 
-                   ReturnValues: "ALL_NEW", 
-                   TableName: "cliente", 
-                   UpdateExpression: "SET #p = :p" 
-                };
-                docClient.update(paramsUpdate, function (err, data) {
-                    if (err)  {
-                        res.status(400).send(JSON.stringify({response : "ERROR", message : "DB access error "+err}));
-                        return;
-                    } else {
-                        res.status(200).send(JSON.stringify({response : "OK", message : "updated" , "data": data}));
-                    }    
-                });    
+                res.status(200).send(JSON.stringify({response : "OK", message : "Password actualizada"}));
             }
-        }    
-    })
+        });
+    });
 });
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
 /*                                                       API REST ticket                                                             *
