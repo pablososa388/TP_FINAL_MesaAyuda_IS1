@@ -384,15 +384,19 @@ app.post('/api/updateCliente', (req,res) => {
 });
 /*-------
 /api/resetCliente
-Permite cambiar la password de un cliente
+Permite cambiar la password de un cliente, identificado por su correo electrónico (contacto)
 */
+// PUNTO 5: antes esta función recibía el "id" del cliente y devolvía el registro completo (con la password).
+// Ahora recibe el correo ("contacto"), que es lo único que el usuario conoce, y no devuelve datos del cliente.
 app.post('/api/resetCliente', (req,res) => {
-    
-    const {id}       = req.body;
+
+    // req.body es el JSON que envía resetPassword.js; acá se leen los dos datos que llegan
+    const {contacto} = req.body;
     const {password} = req.body;
- 
-    if (!id) {
-        res.status(400).send({response : "ERROR" , message: "Id no informada"});
+
+    // Si falta alguno de los dos datos se responde error 400 y "return" corta la función
+    if (!contacto) {
+        res.status(400).send({response : "ERROR" , message: "Contacto no informado"});
         return;
     }
 
@@ -401,51 +405,47 @@ app.post('/api/resetCliente', (req,res) => {
         return;
     }
 
-    var params = {
-        TableName: "cliente",
-        Key: {
-            "id" : id
-            //test use "id": "0533a95d-7eef-4c6b-b753-1a41c9d1fbd0"   
-             }
-        };
-        
-    docClient.get(params, function (err, data) {
-        if (err)  {
-            res.status(400).send(JSON.stringify({response : "ERROR", message : "DB access error "+ null}));
+    // scanDb recorre la tabla "cliente" y devuelve una LISTA con los registros cuyo contacto coincide.
+    // El ".then" se ejecuta cuando la base de datos terminó de responder.
+    scanDb(contacto)
+    .then(resultDb => {
+        // Lista vacía = no hay ningún cliente con ese correo
+        if (Object.keys(resultDb).length == 0) {
+            res.status(400).send({response : "ERROR" , message : "Cliente no existe"});
             return;
-        } else {
+        }
 
-            if (Object.keys(data).length == 0) {
-                res.status(400).send(JSON.stringify({"response":"ERROR",message : "Cliente no existe"}),null,2);
-                return;
+        // "update" necesita la clave primaria (id), no el correo: se toma del primer registro encontrado
+        const id = resultDb[0].id;
+
+        const paramsUpdate = {
+            // "#p" es un alias del nombre del atributo (los alias evitan conflictos con palabras reservadas de DynamoDB)
+            ExpressionAttributeNames: {
+                "#p": "password"
+            },
+            // ":p" es un marcador que se reemplaza por la nueva password
+            ExpressionAttributeValues: {
+                ":p": password
+            },
+            // Key indica qué registro se modifica
+            Key: {
+                "id": id
+            },
+            TableName: "cliente",
+            // SET cambia el valor de un atributo: solo se toca la password, el resto del registro queda igual.
+            // Se quitó ReturnValues: "ALL_NEW", que hacía devolver el registro completo (con la password).
+            UpdateExpression: "SET #p = :p"
+        };
+
+        // Ejecuta el cambio. La función se llama cuando DynamoDB responde (err = error, data = resultado)
+        docClient.update(paramsUpdate, function (err, data) {
+            if (err) {
+                res.status(400).send(JSON.stringify({response : "ERROR", message : "DB access error "+err}));
             } else {
-
-                const paramsUpdate = { 
-   
-                    ExpressionAttributeNames: { 
-                         "#p": "password" 
-                    }, 
-                    ExpressionAttributeValues: { 
-                        ":p": password 
-                   }, 
-                   Key: { 
-                       "id": id 
-                   }, 
-                   ReturnValues: "ALL_NEW", 
-                   TableName: "cliente", 
-                   UpdateExpression: "SET #p = :p" 
-                };
-                docClient.update(paramsUpdate, function (err, data) {
-                    if (err)  {
-                        res.status(400).send(JSON.stringify({response : "ERROR", message : "DB access error "+err}));
-                        return;
-                    } else {
-                        res.status(200).send(JSON.stringify({response : "OK", message : "updated" , "data": data}));
-                    }    
-                });    
+                res.status(200).send(JSON.stringify({response : "OK", message : "Password actualizada"}));
             }
-        }    
-    })
+        });
+    });
 });
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
 /*                                                       API REST ticket                                                             *
@@ -675,5 +675,102 @@ app.post('/api/updateTicket', (req,res) => {
         }    
     })
 
+});
+
+/*---------
+Función para realizar el SCAN completo (sin filtro) de una tabla
+*/
+// PUNTO 6: igual que scanDb y scanDbTicket, pero sin FilterExpression: devuelve TODOS los registros de la tabla.
+// "tabla" es el nombre de la tabla a leer ("cliente" o "ticket").
+async function scanDbTabla(tabla) {
+    var docClient = new AWS.DynamoDB.DocumentClient();
+    const paramsScan = {
+      TableName: tabla
+    };
+    // "await" espera a que DynamoDB responda antes de seguir; data.Items es la lista de registros
+    var objectPromise = await docClient.scan(paramsScan).promise().then((data) => {
+          return data.Items
+    });
+    return objectPromise;
+}
+
+/*---------
+resumenTickets
+Función común para GET y POST: valida usuario y password y devuelve la cantidad de tickets de cada cliente
+*/
+// PUNTO 6: la lógica está en una sola función que usan las dos rutas (GET y POST), así dan el mismo resultado.
+// "async" permite usar "await" adentro: el código se lee de arriba hacia abajo, esperando cada consulta.
+async function resumenTickets(ID, password, res) {
+
+    // Si falta algún dato se responde error 400 y "return" corta la función
+    if (!ID) {
+        res.status(400).send({response : "ERROR" , message : "ID no informado"});
+        return;
+    }
+    if (!password) {
+        res.status(400).send({response : "ERROR" , message : "Password no informada"});
+        return;
+    }
+
+    // Valida el usuario: el "usuario" es el correo. scanDb devuelve una lista con los clientes que tienen ese correo.
+    // Error si la lista está vacía (correo inexistente) o la password no coincide. Se usa un solo mensaje
+    // para no revelar cuál de las dos cosas falló.
+    const usuario = await scanDb(ID);
+    if (usuario.length == 0 || usuario[0].password != password) {
+        res.status(400).send({response : "ERROR" , message : "Usuario o password invalido"});
+        return;
+    }
+
+    // Lee todos los clientes y todos los tickets de la base de datos
+    const clientes = await scanDbTabla("cliente");
+    const tickets  = await scanDbTabla("ticket");
+
+    // "resumen" es la lista que se va a devolver: un elemento por cada cliente
+    const resumen = [];
+    // forEach recorre la lista de clientes de a uno ("c" es el cliente actual)
+    clientes.forEach((c) => {
+        // filter arma una lista nueva con los tickets cuyo clienteID coincide con el id de este cliente
+        const susTickets = tickets.filter((t) => t.clienteID == c.id);
+        // push agrega el resultado de este cliente a la lista
+        resumen.push({
+            id               : c.id,
+            contacto         : c.contacto,
+            cantidad_tickets : susTickets.length,   // la cantidad es el largo de la lista (puede ser 0)
+            // map arma otra lista transformando cada ticket: queda solo con los tres datos pedidos
+            tickets          : susTickets.map((t) => ({
+                id              : t.id,
+                fecha_apertura  : t.fecha_apertura,
+                estado_solucion : t.estado_solucion
+            }))
+        });
+    });
+
+    // JSON.stringify convierte el resultado en texto JSON para enviarlo. No incluye ninguna password.
+    res.status(200).send(JSON.stringify({response : "OK", "clientes" : resumen}));
+}
+
+/*---
+  /resumenTickets  (GET)
+  Los argumentos llegan en el URL: /resumenTickets?ID={usuario}&PASSWORD={password}
+*/
+// PUNTO 6: en GET los datos viajan en el URL y Express los deja en req.query.
+// Los nombres ID y PASSWORD (en mayúscula) son los de la consigna: JavaScript distingue mayúsculas de minúsculas.
+app.get('/resumenTickets', (req,res) => {
+    const ID       = req.query.ID;
+    const password = req.query.PASSWORD;
+    console.log("resumenTickets GET: ID("+ID+")");
+    resumenTickets(ID, password, res);
+});
+
+/*---
+  /resumenTickets  (POST)
+  Los argumentos llegan en un JSON: {"ID": "...", "PASSWORD": "..."}
+*/
+// PUNTO 6: en POST los datos viajan en el cuerpo del pedido, en JSON, y Express los deja en req.body.
+app.post('/resumenTickets', (req,res) => {
+    const ID       = req.body.ID;
+    const password = req.body.PASSWORD;
+    console.log("resumenTickets POST: ID("+ID+")");
+    resumenTickets(ID, password, res);
 });
 /*-------------------------------------------------[ Fin del API REST ]-------------------------------------------------------------*/
