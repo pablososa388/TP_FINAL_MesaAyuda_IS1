@@ -810,6 +810,7 @@ async function consultarTicket(ID, password, ticketID, res) {
         Key: { "id" : ticketID }
     };
     // ".promise()" permite usar "await" con docClient.get, que normalmente trabaja con una función de respuesta
+    console.log("ticketID recibido:", JSON.stringify(ticketID));
     const data = await docClient.get(params).promise();
 
     // Si el ticket no existe, DynamoDB responde sin el atributo "Item"
@@ -835,7 +836,7 @@ async function consultarTicket(ID, password, ticketID, res) {
 app.get('/getTicket', (req,res) => {
     const ID       = req.query.ID;
     const password = req.query.PASSWORD;
-    const ticketID = req.query.TICKET;
+    const ticketID = req.query.TICKET?.trim();
     console.log("getTicket GET: ID("+ID+") TICKET("+ticketID+")");
     consultarTicket(ID, password, ticketID, res);
 });
@@ -848,7 +849,7 @@ app.get('/getTicket', (req,res) => {
 app.post('/getTicket', (req,res) => {
     const ID       = req.body.ID;
     const password = req.body.PASSWORD;
-    const ticketID = req.body.TICKET;
+    const ticketID = req.body.TICKET?.trim();
     console.log("getTicket POST: ID("+ID+") TICKET("+ticketID+")");
     consultarTicket(ID, password, ticketID, res);
 });
