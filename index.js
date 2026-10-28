@@ -160,9 +160,31 @@ app.post('/api/loginCliente', (req,res) => {
                     if (password == paswd) {
                         if (activo == true) {
                             const nombre=jsonParser('nombre',data.Items[0]);
-                            const fecha_ultimo_ingreso=jsonParser('fecha_ultimo_ingreso',data.Items[0]);
-                            // Se devuelve el "id" (UUID real) además del correo: listarTicket lo necesita
-                            res.status(200).send(JSON.stringify({response : "OK", "id" : id, "nombre" : nombre, "contacto" : contacto, "fecha_ultimo_ingreso": fecha_ultimo_ingreso}));
+
+                            // fecha de hoy (dd/mm/aaaa), con el mismo formato que usa addCliente
+                            var hoy = new Date();
+                            var dd = String(hoy.getDate()).padStart(2, '0');
+                            var mm = String(hoy.getMonth() + 1).padStart(2, '0');
+                            var yyyy = hoy.getFullYear();
+                            hoy = dd + '/' + mm + '/' + yyyy;
+
+                            // se guarda en la base la fecha de este ingreso. SET cambia solo ese atributo,
+                            // el resto del registro queda igual. Key indica qué cliente (su clave primaria, el id).
+                            var paramsUpdate = {
+                                TableName: "cliente",
+                                Key: { "id": id },
+                                UpdateExpression: "SET fecha_ultimo_ingreso = :f",
+                                ExpressionAttributeValues: { ":f": hoy }
+                            };
+                            // La respuesta se envía ADENTRO de esta función, cuando DynamoDB ya terminó de guardar.
+                            docClient.update(paramsUpdate, function (errUpdate, dataUpdate) {
+                                if (errUpdate) {
+                                    res.status(400).send(JSON.stringify({response : "ERROR", message : "DB access error "+errUpdate}));
+                                } else {
+                                    // Se devuelve la fecha de hoy, que es la del ingreso actual
+                                    res.status(200).send(JSON.stringify({response : "OK", "id" : id, "nombre" : nombre, "contacto" : contacto, "fecha_ultimo_ingreso": hoy}));
+                                }
+                            });
                         } else {
                             res.status(400).send(JSON.stringify({response : "ERROR", message : "Cliente no activo"}));
                         }

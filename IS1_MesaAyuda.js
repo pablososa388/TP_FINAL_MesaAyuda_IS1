@@ -160,9 +160,31 @@ app.post('/api/loginCliente', (req,res) => {
                     if (password == paswd) {
                         if (activo == true) {
                             const nombre=jsonParser('nombre',data.Items[0]);
-                            const fecha_ultimo_ingreso=jsonParser('fecha_ultimo_ingreso',data.Items[0]);
-                            // Se devuelve el "id" (UUID real) además del correo: listarTicket lo necesita
-                            res.status(200).send(JSON.stringify({response : "OK", "id" : id, "nombre" : nombre, "contacto" : contacto, "fecha_ultimo_ingreso": fecha_ultimo_ingreso}));
+
+                            // fecha de hoy (dd/mm/aaaa), con el mismo formato que usa addCliente
+                            var hoy = new Date();
+                            var dd = String(hoy.getDate()).padStart(2, '0');
+                            var mm = String(hoy.getMonth() + 1).padStart(2, '0');
+                            var yyyy = hoy.getFullYear();
+                            hoy = dd + '/' + mm + '/' + yyyy;
+
+                            // se guarda en la base la fecha de este ingreso. SET cambia solo ese atributo,
+                            // el resto del registro queda igual. Key indica qué cliente (su clave primaria, el id).
+                            var paramsUpdate = {
+                                TableName: "cliente",
+                                Key: { "id": id },
+                                UpdateExpression: "SET fecha_ultimo_ingreso = :f",
+                                ExpressionAttributeValues: { ":f": hoy }
+                            };
+                            // La respuesta se envía ADENTRO de esta función, cuando DynamoDB ya terminó de guardar.
+                            docClient.update(paramsUpdate, function (errUpdate, dataUpdate) {
+                                if (errUpdate) {
+                                    res.status(400).send(JSON.stringify({response : "ERROR", message : "DB access error "+errUpdate}));
+                                } else {
+                                    // Se devuelve la fecha de hoy, que es la del ingreso actual
+                                    res.status(200).send(JSON.stringify({response : "OK", "id" : id, "nombre" : nombre, "contacto" : contacto, "fecha_ultimo_ingreso": hoy}));
+                                }
+                            });
                         } else {
                             res.status(400).send(JSON.stringify({response : "ERROR", message : "Cliente no activo"}));
                         }
@@ -810,6 +832,7 @@ async function consultarTicket(ID, password, ticketID, res) {
         Key: { "id" : ticketID }
     };
     // ".promise()" permite usar "await" con docClient.get, que normalmente trabaja con una función de respuesta
+    console.log("ticketID recibido:", JSON.stringify(ticketID));
     const data = await docClient.get(params).promise();
 
     // Si el ticket no existe, DynamoDB responde sin el atributo "Item"
@@ -835,7 +858,7 @@ async function consultarTicket(ID, password, ticketID, res) {
 app.get('/getTicket', (req,res) => {
     const ID       = req.query.ID;
     const password = req.query.PASSWORD;
-    const ticketID = req.query.TICKET;
+    const ticketID = req.query.TICKET?.trim();
     console.log("getTicket GET: ID("+ID+") TICKET("+ticketID+")");
     consultarTicket(ID, password, ticketID, res);
 });
@@ -848,7 +871,7 @@ app.get('/getTicket', (req,res) => {
 app.post('/getTicket', (req,res) => {
     const ID       = req.body.ID;
     const password = req.body.PASSWORD;
-    const ticketID = req.body.TICKET;
+    const ticketID = req.body.TICKET?.trim();
     console.log("getTicket POST: ID("+ID+") TICKET("+ticketID+")");
     consultarTicket(ID, password, ticketID, res);
 });
