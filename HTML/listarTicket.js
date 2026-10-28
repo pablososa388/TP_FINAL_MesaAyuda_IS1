@@ -32,7 +32,7 @@ console.log("mode:"+query.mode);
 // query.contacto y query.nombre llegan por la URL: los puso loginClient.js al redirigir después del login.
 // Cambios: la primera fila muestra el correo (antes mostraba query.id, el id interno, que no es el correo en los clientes preexistentes) y se agregó la fila "Nombre".
 // query.id ya no se muestra, pero se sigue usando más abajo para pedirle al servidor los tickets del cliente.
-document.getElementById("lastlogin").innerHTML = "<table><tr><td>Cliente (E-Mail)</td><td>"+query.contacto+"</td></tr><tr><td>Nombre</td><td>"+query.nombre+"</td></tr><tr><td>Contacto</td><td>"+query.contacto+"</td></tr><tr><td>Ultimo ingreso</td><td>"+query.fecha_ultimo_ingreso+"</td></tr></table>";
+document.getElementById("lastlogin").innerHTML = "<table><tr><td>Cliente</td><td>"+query.id+"</td></tr><tr><td>Nombre</td><td>"+query.nombre+"</td></tr><tr><td>Contacto</td><td>"+query.contacto+"</td></tr><tr><td>Ultimo ingreso</td><td>"+query.fecha_ultimo_ingreso+"</td></tr></table>";
 
 const systemURL={ 
 

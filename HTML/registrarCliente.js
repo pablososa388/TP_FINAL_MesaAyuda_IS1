@@ -5,16 +5,26 @@ formE1.addEventListener('submit', (event) => {
 	event.preventDefault();   // evita que el formulario recargue la página
 	const formData = new FormData(formE1);
 	const data = Object.fromEntries(formData);   // data.contacto, data.nombre, data.password, data.termscondition
-
+	document.getElementById('resultado1').textContent = '';
+	document.getElementById('resultado2').textContent = '';
+	
 	// Validación de comodidad: los 3 campos de texto no pueden estar vacíos
-	if (data.contacto == '' || data.password == '' || data.nombre == '') {
+	if (data.contacto == '' || data.password == '' || data.password2 == '' || data.nombre == '') {
 		document.getElementById('resultado1').style.color = 'RED';
 		document.getElementById('resultado1').style.textAlign = 'center';
 		document.getElementById('resultado1').textContent =
-			'Debe informar nombre, correo y password para completar el registro';
+			'Debe informar nombre, correo y la password dos veces para completar el registro';
 		return;
 	}
 
+	// Las dos passwords deben ser iguales (se verifica solo en el navegador: al servidor llega una sola)
+	if (data.password != data.password2) {
+		document.getElementById('resultado1').style.color = 'RED';
+		document.getElementById('resultado1').style.textAlign = 'center';
+		document.getElementById('resultado1').textContent = 'Las passwords no coinciden';
+		return;
+
+	}
 	// Los T&C son obligatorios según la consigna
 	if (data.termscondition != 'on') {
 		document.getElementById('resultado2').style.textAlign = 'center';
